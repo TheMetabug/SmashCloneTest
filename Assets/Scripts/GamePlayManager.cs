@@ -13,7 +13,8 @@ public class GamePlayManager : MonoBehaviour
     {
         // TODO: target framerate is 30 by default now. Increase it to 60
         // after game has more meat around bones to tweak stuff better.
-        Application.targetFrameRate = 30;
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 60;
     }
 
     void Update()
