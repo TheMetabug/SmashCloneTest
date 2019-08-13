@@ -23,7 +23,7 @@ public class Debug_StateDisplay : MonoBehaviour
         _textMesh.text =
             "MovementState: " + movementStateName + "\n" +
             "MovementFrame: " + curMovementFrame + "\n" +
-            "ActiveState: " + movementStateName + "\n" +
+            "ActiveState: " + activeStateName + "\n" +
             "ActiveFrame: " + curActiveFrame + "\n"
             
         ;

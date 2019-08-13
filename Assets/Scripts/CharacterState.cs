@@ -24,6 +24,8 @@ public enum MovementState
     Walk,
     Run,
     Jump,
+    Fall,
+    Land,
     Attack,
     Hit,
 }
@@ -55,13 +57,13 @@ public class CharacterState
     public void SetMovementState(MovementState value)
     {
         currentMovementState = value;
+        SetActiveState(ActiveState.Start);
         mStateActivationFrame = Time.frameCount;
     }
 
     public void SetActiveState(ActiveState value)
     {
         currentActiveState = value;
-
         aStateActivationFrame = Time.frameCount;
     }
 
