@@ -16,9 +16,6 @@ public class PlayerController : MonoBehaviour
     private SimpleCollider _groundCollider;
     private float _verticalMovement;
     private float _horizontalMovement;
-    private bool _isOnFloor = false;
-    private bool _isJumping = false;
-    private bool _isFalling = false;
 
     /*
      * FRAMEDATA - Framedata will be fetch from JSON file or something similiar in the future.
@@ -51,6 +48,7 @@ public class PlayerController : MonoBehaviour
 
     private void ProcessMovement()
     {
+        ProcessAttack();
         ProcessWalk();
         ProcessJump();
         ProcessFall();
@@ -66,6 +64,28 @@ public class PlayerController : MonoBehaviour
         transform.localPosition = processedMovementVector;
     }
 
+    private void ProcessAttack()
+    {   
+        bool attackInput = GetAttackInput();
+        MovementState movementState = playerState.GetCurrentMovementState();
+        ActiveState activeState = playerState.GetCurrentActiveState();
+        int movementFrames = playerState.GetCurMovementStateFrame();
+
+        // Ground attack
+        if (attackInput && (movementState != MovementState.Jump &&
+            movementState != MovementState.Fall &&
+            movementState != MovementState.Land &&
+            movementState != MovementState.Attack))
+        {
+            playerState.SetMovementState(MovementState.Attack);
+        }
+
+        if (movementState == MovementState.Attack)
+        {
+            ProcessMovementStateFrames(MovementState.Attack, _frameData_Attack, MovementState.Idle);
+        }
+    }
+
     private void ProcessWalk()
     {
         float xAxisInput = GetXAxisInput();
@@ -75,7 +95,7 @@ public class PlayerController : MonoBehaviour
 
         _verticalMovement = 0f;
 
-        if (movementState != MovementState.Land)
+        if (movementState != MovementState.Land && movementState != MovementState.Attack)
         {
             if (xAxisInput < -0.1f || xAxisInput > 0.1f)
             {
@@ -122,10 +142,12 @@ public class PlayerController : MonoBehaviour
     private void ProcessJump()
     {
         MovementState movementState = playerState.GetCurrentMovementState();
-        // If player has pressed jump and is not on jump&fall state, enable jump state
-        if (GetJumpInput() &&
-            movementState != MovementState.Jump &&
-            movementState != MovementState.Fall)
+        bool isJumpInput = GetJumpInput();
+        // If player has pressed jump and is not on unwanted state, enable jump state
+        if (isJumpInput && (movementState != MovementState.Jump &&
+            movementState != MovementState.Fall &&
+            movementState != MovementState.Land &&
+            movementState != MovementState.Attack))
         {
 
             playerState.SetMovementState(MovementState.Jump);
@@ -158,7 +180,9 @@ public class PlayerController : MonoBehaviour
             ProcessMovementStateFrames(MovementState.Land, _frameData_Land, MovementState.Idle);
         }
 
-        if (movementState == MovementState.Fall)
+        if (movementState == MovementState.Fall ||
+            !_groundCollider.isTouching() && movementState == MovementState.Attack ||
+            !_groundCollider.isTouching() && movementState == MovementState.Idle)
         {
             if (_groundCollider.isTouching() &&
                 _groundCollider.whatTagCollisionHas() == "Stage")
@@ -275,18 +299,13 @@ public class PlayerController : MonoBehaviour
         }
         return false;
     }
-
-    private void OnTriggerExit(Collider other) {
-        if (other.tag == "Stage")
+    
+    private bool GetAttackInput()
+    {
+        if (CrossPlatformInputManager.GetButton("Fire1"))
         {
-            _isOnFloor = false;
+            return true;
         }
-    }
-
-    private void OnTriggerStay(Collider other) {
-        if (other.tag == "Stage")
-        {
-            _isOnFloor = true;
-        }
+        return false;
     }
 }
