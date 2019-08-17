@@ -28,6 +28,7 @@ public enum MovementState
     Land,
     Attack,
     Hit,
+    Undefined,
 }
 
 /*

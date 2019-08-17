@@ -7,12 +7,15 @@ using UnityStandardAssets.CrossPlatformInput;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] float walkSpeed = 2f;
-    [SerializeField] float playerGravity = 9f;
+    [SerializeField] float playerGravity = 2f;
+    [SerializeField] float maxFallSpeed = 5f;
     [SerializeField] float playerJumpForce = 9f;
     [SerializeField] public CharacterState playerState = new CharacterState();
     private Rigidbody _rigidBody;
-    private Vector3 _verticalMovement;
-    private Vector3 _horizontalMovement;
+    private Collider _mainCollider;
+    private SimpleCollider _groundCollider;
+    private float _verticalMovement;
+    private float _horizontalMovement;
     private bool _isOnFloor = false;
     private bool _isJumping = false;
     private bool _isFalling = false;
@@ -31,85 +34,113 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
-        _rigidBody = GetComponentInChildren<Rigidbody>();
+        _rigidBody = GetComponent<Rigidbody>();
+        _mainCollider = GetComponent<Collider>();
+        _groundCollider = transform.GetChild(0).transform.GetChild(0).GetComponent<SimpleCollider>();
+
         playerState.SetMovementState(MovementState.Idle);
         playerState.SetActiveState(ActiveState.Inactive);
+
         InitializeFramedata();
     }
 
     void Update()
     {
-        ProcessInput();
         ProcessMovement();
-        ProcessStates();
-    }
-
-    void ProcessInput()
-    {
-        // TODO: 
-        // 1. Add crossplatform input. For now, use plain keyboard presser for testing.
-        // 2. Make movement smarter and consistent. Dont use default unity options.
-
-
-        _verticalMovement = new Vector3( 0, 0, 0);
-        float xAxisInput = GetXAxisInput();
-
-        if (xAxisInput > 0)
-        {
-            _verticalMovement = new Vector3( walkSpeed, 0, 0);
-        }
-        else if (xAxisInput < 0)
-        {
-            _verticalMovement = new Vector3(-walkSpeed, 0, 0);
-        }
-
-
-        ProcessJump();
-        ProcessFall();
-
-
     }
 
     private void ProcessMovement()
     {
+        ProcessWalk();
+        ProcessJump();
+        ProcessFall();
+
         float delta = Time.deltaTime;
         Vector3 localPos = transform.localPosition;
 
-        ProcessGravity(delta);
-
         Vector3 processedMovementVector = new Vector3(
-            localPos.x + (_verticalMovement.x * delta),
-            localPos.y + (_horizontalMovement.y * delta),
+            localPos.x + (_verticalMovement * delta),
+            localPos.y + (_horizontalMovement * delta),
             localPos.z
         );
         transform.localPosition = processedMovementVector;
     }
 
-    private void ProcessStates()
+    private void ProcessWalk()
     {
-        // 
+        float xAxisInput = GetXAxisInput();
+        MovementState movementState = playerState.GetCurrentMovementState();
+        ActiveState activeState = playerState.GetCurrentActiveState();
+        int movementFrames = playerState.GetCurMovementStateFrame();
+
+        _verticalMovement = 0f;
+
+        if (movementState != MovementState.Land)
+        {
+            if (xAxisInput < -0.1f || xAxisInput > 0.1f)
+            {
+                // Set X speed
+                if (xAxisInput > 0)
+                {     
+                    _verticalMovement = walkSpeed;
+                }
+                else if (xAxisInput < 0)
+                {
+                    _verticalMovement = -walkSpeed;
+                }
+                // Set MovementState to Walk if it is not enabled yet and process it.
+                if (movementState != MovementState.Walk && movementState == MovementState.Idle)
+                {
+                    playerState.SetMovementState(MovementState.Walk);
+                }
+                // 
+                if (movementState != MovementState.Walk && movementState == MovementState.Idle)
+                {
+                    playerState.SetMovementState(MovementState.Walk);
+                }
+                
+                if (movementState == MovementState.Walk)
+                {
+                    ProcessMovementStateFrames(MovementState.Walk, _frameData_Walk);
+                }
+            }
+            else
+            {
+                // Prevent user "tap" left or right and continue walk animation unnecessarily. Just go idle state again.
+                if (movementState == MovementState.Walk && movementFrames < 4) // 4 frames should do the trick
+                {
+                    playerState.SetMovementState(MovementState.Idle);
+                }
+                else if (movementState == MovementState.Walk)
+                {
+                    ProcessMovementStateFrames(MovementState.Walk, _frameData_Walk, MovementState.Idle);
+                }
+            }
+        }
     }
 
     private void ProcessJump()
     {
-        // If player has pressed jump and is not on jump state, enable jump state
-        if (GetJumpInput() && playerState.GetCurrentMovementState() != MovementState.Jump)
+        MovementState movementState = playerState.GetCurrentMovementState();
+        // If player has pressed jump and is not on jump&fall state, enable jump state
+        if (GetJumpInput() &&
+            movementState != MovementState.Jump &&
+            movementState != MovementState.Fall)
         {
 
             playerState.SetMovementState(MovementState.Jump);
-            playerState.SetActiveState(ActiveState.Start);
 
             // Raise player little bit upwards to get off the floor
             transform.localPosition = new Vector3(
                 transform.localPosition.x,
-                transform.localPosition.y + 0.5f,
+                transform.localPosition.y + 0.2f,
                 transform.localPosition.z
             );
         }
-        // 
-        else if (playerState.GetCurrentMovementState() == MovementState.Jump)
+        // Go upwards and play the animation on loop until fall animation starts
+        else if (movementState == MovementState.Jump)
         {
-            _horizontalMovement.y = playerJumpForce;
+            _horizontalMovement = playerJumpForce;
             ProcessMovementStateFrames(MovementState.Jump, _frameData_Jump, MovementState.Fall);
         }
     }
@@ -118,23 +149,36 @@ public class PlayerController : MonoBehaviour
     {
         MovementState movementState = playerState.GetCurrentMovementState();
         ActiveState activeState = playerState.GetCurrentActiveState();
-
-        // If jump input isn't pressed anymore and player is still in the jump state, enable fall state
-        if (!GetJumpInput() && movementState == MovementState.Jump && activeState == ActiveState.Stop ||
-            !_isOnFloor && movementState != MovementState.Jump)
-        {
-            playerState.SetMovementState(MovementState.Fall);
-        }
-        // If floor is touching the player and we are falling, it means we are going to land.
-        else if (_isOnFloor && movementState == MovementState.Fall)
-        {
-            playerState.SetMovementState(MovementState.Land);
-        }
-        // Call transition from landing to idle
+        float delta = Time.deltaTime;
+        
+        // Land on the ground animation
         if (movementState == MovementState.Land)
         {
+            _horizontalMovement = 0f;
             ProcessMovementStateFrames(MovementState.Land, _frameData_Land, MovementState.Idle);
         }
+
+        if (movementState == MovementState.Fall)
+        {
+            if (_groundCollider.isTouching() &&
+                _groundCollider.whatTagCollisionHas() == "Stage")
+            {
+                playerState.SetMovementState(MovementState.Land);
+                _horizontalMovement = 0f;
+                // TODO: make this check landing height by platform, not default -1 !!
+                transform.localPosition = new Vector3(
+                    transform.localPosition.x,
+                    -1.000f,
+                    transform.localPosition.z
+                );
+            }
+            // Fall towards the ground. Gravity pulls character down but locks to maxFallSpeed
+            _horizontalMovement -= playerGravity;
+            _horizontalMovement = Mathf.Clamp(_horizontalMovement, -maxFallSpeed, playerJumpForce);
+            // Loop fall animation
+            ProcessMovementStateFrames(MovementState.Fall, _frameData_Fall);
+        }
+
     }
 
     /*
@@ -173,8 +217,10 @@ public class PlayerController : MonoBehaviour
         _frameData_Hit[1] = 5;
         _frameData_Hit[2] = 15;
     }
-
-    private void ProcessMovementStateFrames(MovementState mState, int[] fData, MovementState nextState)
+    /*
+     * 
+     */
+    private void ProcessMovementStateFrames(MovementState mState, int[] fData, MovementState nextState = MovementState.Undefined)
     {   
         int warmupFrame = fData[0];
         int activeFrame = fData[1];
@@ -200,38 +246,25 @@ public class PlayerController : MonoBehaviour
             playerState.SetActiveState(ActiveState.Active);
         }
         else if (currentActiveFrame >= stopFrame &&
-                activeState == ActiveState.Active)
+                activeState == ActiveState.Active &&
+                nextState != MovementState.Undefined)
         {
             playerState.SetMovementState(nextState);
         }
     }
 
-    /*
-     * Handles the falling, nothing else really. Should this be also when checking states??
-     */
-    private void ProcessGravity(float delta)
-    {
-        if (_isOnFloor)
-        {
-            _horizontalMovement.y = 0f;
-        }
-        else
-        {
-            _horizontalMovement.y -= playerGravity;
-        }
-    }
-
     private float GetXAxisInput()
     {
+        float inputDir = 0f;
         if (Input.GetKey(KeyCode.D))
         {
-           return 1f;
+           inputDir += 1f;
         }
         if (Input.GetKey(KeyCode.A))
         {
-           return -1f;
+           inputDir += -1f;
         }
-        return 0f;
+        return inputDir;
     }
 
     private bool GetJumpInput()
