@@ -778,6 +778,8 @@ MonoBehaviour:
   playerGravity: 0.5
   maxFallSpeed: 5
   playerJumpForce: 5
+  hitBoxObject: {fileID: 5747382064847064840, guid: 19e9b8654cda7d64bb1cfb5d3041f342,
+    type: 3}
 --- !u!54 &1349573828
 Rigidbody:
   m_ObjectHideFlags: 0

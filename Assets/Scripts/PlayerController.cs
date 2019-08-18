@@ -7,14 +7,14 @@ using UnityStandardAssets.CrossPlatformInput;
 /*
 * FRAMEDATA - Framedata will be fetch from JSON file or something similiar in the future.
 * These are now placeholders, but they are "data" how much startup, active, final active frames are in "state".
-* Example: Land = [5, 5, 15] is []
+* Example: Land = [5, 5, 15]
 */
-struct FrameData
+public struct FrameData
 {
     public int[] land;
     public int[] jump;
     public int[] doubleJump;
-    public Attack[] attacks;
+    public Attack[] attacks; // This will contain all of player attacks
     public int[] walk;
     public int[] fall;
     public int[] hit;
@@ -30,7 +30,10 @@ struct FrameData
     }
 }
 
-struct Attack
+/*
+ * ATTACK - Contains data of SINGLE attack. Attack can have multiple hitboxes too.
+ */
+public struct Attack
 {
     public string name;
     public int id;
@@ -45,22 +48,30 @@ struct Attack
     }
 }
 
-struct HitBox
+/*
+ * HITBOX - Contains data of SINGLE hitbox. Pretty self explatanory.
+ * Note: Hitboxes are meant to "spawn" at correct location when called. Hitboxes are sphere kind
+ *       of hitboxes what causes hits to check if connects to enemy hitboxes.
+ */
+public struct HitBox
 {
     public int id;
     public Vector3 position;
     public float radius;
     public float damage;
     public float launchPower;
+    public float hitBoxDuration;
     public Vector3 launchDirection;
-    public HitBox(int _id, Vector3 _position, float _radius, float _damage, float _launchPower, Vector3 _launchDirection)
+    public HitBox(int _id, Vector3 _position, float _radius, float _damage, float _launchPower, float _hitBoxDuration, Vector3 _launchDirection)
     {
         id = _id;
         position = _position;
         radius = _radius;
         damage = _damage;
         launchPower = _launchPower;
+        hitBoxDuration = _hitBoxDuration;
         launchDirection = _launchDirection;
+        
     }
 }
 
@@ -70,13 +81,16 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float playerGravity = 2f;
     [SerializeField] float maxFallSpeed = 5f;
     [SerializeField] float playerJumpForce = 9f;
-    [SerializeField] public CharacterState playerState = new CharacterState();
+    [SerializeField] public GameObject hitBoxObject;
+    public CharacterState playerState = new CharacterState();
+    // [SerializeField] public CharacterState playerAttackState = new CharacterState();
     private Rigidbody _rigidBody;
     private Collider _mainCollider;
     private SimpleCollider _groundCollider;
+    private FrameData _frameData;
     private float _verticalMovement;
     private float _horizontalMovement;
-    private FrameData _frameData;
+    private bool _isFacingRight = true;
 
     void Start()
     {
@@ -131,7 +145,7 @@ public class PlayerController : MonoBehaviour
 
         if (movementState == MovementState.Attack)
         {
-            ProcessMovementStateFrames(MovementState.Attack, _frameData.attacks[0].frameData, MovementState.Idle);
+            ProcessAttack(_frameData.attacks[0]);
         }
     }
 
@@ -152,10 +166,12 @@ public class PlayerController : MonoBehaviour
                 if (xAxisInput > 0)
                 {     
                     _verticalMovement = walkSpeed;
+                    _isFacingRight = true;
                 }
                 else if (xAxisInput < 0)
                 {
                     _verticalMovement = -walkSpeed;
+                    _isFacingRight = false;
                 }
                 // Set MovementState to Walk if it is not enabled yet and process it.
                 if (movementState != MovementState.Walk && movementState == MovementState.Idle)
@@ -261,11 +277,12 @@ public class PlayerController : MonoBehaviour
     {
         // Ignore JSON loading now, just put something so we can test the feature!
         HitBox[] hitboxes = new HitBox[1]{
-            new HitBox(0, new Vector3(), 1f, 2f, 2f, new Vector3(1f, 0f, 0f))
+            new HitBox(0, new Vector3(0.5f, 0f, 0f), 0.25f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f))
         };
 
-        Attack[] attacks = new Attack[1]{
-            new Attack(0, "jab1", new int[3]{2,5,15}, hitboxes)
+        Attack[] attacks = new Attack[2]{
+            new Attack(0, "jab1", new int[3]{2,5,15}, hitboxes),
+            new Attack(1, "jab2", new int[3]{2,5,20}, hitboxes),
         };
 
         _frameData = new FrameData(
@@ -279,6 +296,7 @@ public class PlayerController : MonoBehaviour
         );
 
     }
+
     /*
      * 
      */
@@ -312,6 +330,56 @@ public class PlayerController : MonoBehaviour
                 nextState != MovementState.Undefined)
         {
             playerState.SetMovementState(nextState);
+        }
+    }
+
+    /*
+     * 
+     */
+    private void ProcessAttack(Attack attack)
+    {   
+        Vector3 locPos = transform.localPosition;
+        int warmupFrame = attack.frameData[0];
+        int activeFrame = attack.frameData[1];
+        int stopFrame = attack.frameData[2];
+
+        int currentActiveFrame = playerState.GetCurMovementStateFrame();
+        ActiveState activeState = playerState.GetCurrentActiveState();
+
+        if (currentActiveFrame >= 0 &&
+            activeState == ActiveState.Inactive)
+        {
+            playerState.SetActiveState(ActiveState.Start);
+        }
+        
+        if (currentActiveFrame >= warmupFrame &&
+                activeState == ActiveState.Start)
+        {
+            playerState.SetActiveState(ActiveState.Warmup);
+        }
+        else if (currentActiveFrame >= activeFrame &&
+                activeState == ActiveState.Warmup)
+        {
+            playerState.SetActiveState(ActiveState.Active);
+            // Create hitbox
+            GameObject hBox = Instantiate(
+                hitBoxObject,
+                locPos,
+                transform.rotation,
+                transform
+            );
+            hBox.GetComponent<HitboxObject>().ActivateHitbox(attack.hitBox[0], _isFacingRight);
+            GameObject.Destroy(hBox, attack.hitBox[0].hitBoxDuration);
+        }
+        else if (currentActiveFrame >= stopFrame &&
+                activeState == ActiveState.Active)
+        {
+            playerState.SetActiveState(ActiveState.Stopping);
+        }
+        else if (currentActiveFrame >= stopFrame &&
+                activeState == ActiveState.Stopping)
+        {
+            playerState.SetMovementState(playerState.GetLastMovementState());
         }
     }
 

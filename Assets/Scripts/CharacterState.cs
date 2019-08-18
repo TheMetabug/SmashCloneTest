@@ -41,6 +41,7 @@ public enum MovementState
 public class CharacterState
 {
     private MovementState currentMovementState = MovementState.Idle;
+    private MovementState lastMovementState = MovementState.Idle;
     private ActiveState currentActiveState;
     private int mStateActivationFrame = 0;
     private int aStateActivationFrame = 0;
@@ -55,8 +56,14 @@ public class CharacterState
         return currentActiveState;
     }
 
+    public MovementState GetLastMovementState()
+    {
+        return lastMovementState;
+    }
+
     public void SetMovementState(MovementState value)
     {
+        lastMovementState = currentMovementState;
         currentMovementState = value;
         SetActiveState(ActiveState.Start);
         mStateActivationFrame = Time.frameCount;
