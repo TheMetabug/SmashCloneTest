@@ -4,6 +4,66 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityStandardAssets.CrossPlatformInput;
 
+/*
+* FRAMEDATA - Framedata will be fetch from JSON file or something similiar in the future.
+* These are now placeholders, but they are "data" how much startup, active, final active frames are in "state".
+* Example: Land = [5, 5, 15] is []
+*/
+struct FrameData
+{
+    public int[] land;
+    public int[] jump;
+    public int[] doubleJump;
+    public Attack[] attacks;
+    public int[] walk;
+    public int[] fall;
+    public int[] hit;
+    public FrameData(int[] _land, int[] _jump, int[] _doubleJump, Attack[] _attacks, int[] _walk, int[] _fall, int[] _hit)
+    {
+        land = _land;
+        jump = _jump;
+        doubleJump = _doubleJump;
+        attacks = _attacks;
+        walk = _walk;
+        fall = _fall;
+        hit = _hit;
+    }
+}
+
+struct Attack
+{
+    public string name;
+    public int id;
+    public int[] frameData;
+    public HitBox[] hitBox;
+    public Attack(int _id, string _name, int[] _frameData, HitBox[] _hitBox)
+    {
+        id = _id;
+        name = _name;
+        frameData = _frameData;
+        hitBox = _hitBox;
+    }
+}
+
+struct HitBox
+{
+    public int id;
+    public Vector3 position;
+    public float radius;
+    public float damage;
+    public float launchPower;
+    public Vector3 launchDirection;
+    public HitBox(int _id, Vector3 _position, float _radius, float _damage, float _launchPower, Vector3 _launchDirection)
+    {
+        id = _id;
+        position = _position;
+        radius = _radius;
+        damage = _damage;
+        launchPower = _launchPower;
+        launchDirection = _launchDirection;
+    }
+}
+
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] float walkSpeed = 2f;
@@ -16,18 +76,7 @@ public class PlayerController : MonoBehaviour
     private SimpleCollider _groundCollider;
     private float _verticalMovement;
     private float _horizontalMovement;
-
-    /*
-     * FRAMEDATA - Framedata will be fetch from JSON file or something similiar in the future.
-     * These are now placeholders, but they are "data" how much startup, active, final active frames are in "state".
-     * Example: Land = [5, 5, 15] is []
-     */
-    private int[] _frameData_Land;
-    private int[] _frameData_Jump;
-    private int[] _frameData_Attack;
-    private int[] _frameData_Walk;
-    private int[] _frameData_Fall;
-    private int[] _frameData_Hit;
+    private FrameData _frameData;
 
     void Start()
     {
@@ -82,7 +131,7 @@ public class PlayerController : MonoBehaviour
 
         if (movementState == MovementState.Attack)
         {
-            ProcessMovementStateFrames(MovementState.Attack, _frameData_Attack, MovementState.Idle);
+            ProcessMovementStateFrames(MovementState.Attack, _frameData.attacks[0].frameData, MovementState.Idle);
         }
     }
 
@@ -121,7 +170,7 @@ public class PlayerController : MonoBehaviour
                 
                 if (movementState == MovementState.Walk)
                 {
-                    ProcessMovementStateFrames(MovementState.Walk, _frameData_Walk);
+                    ProcessMovementStateFrames(MovementState.Walk, _frameData.walk);
                 }
             }
             else
@@ -133,7 +182,7 @@ public class PlayerController : MonoBehaviour
                 }
                 else if (movementState == MovementState.Walk)
                 {
-                    ProcessMovementStateFrames(MovementState.Walk, _frameData_Walk, MovementState.Idle);
+                    ProcessMovementStateFrames(MovementState.Walk, _frameData.walk, MovementState.Idle);
                 }
             }
         }
@@ -163,7 +212,7 @@ public class PlayerController : MonoBehaviour
         else if (movementState == MovementState.Jump)
         {
             _horizontalMovement = playerJumpForce;
-            ProcessMovementStateFrames(MovementState.Jump, _frameData_Jump, MovementState.Fall);
+            ProcessMovementStateFrames(MovementState.Jump, _frameData.jump, MovementState.Fall);
         }
     }
 
@@ -177,7 +226,7 @@ public class PlayerController : MonoBehaviour
         if (movementState == MovementState.Land)
         {
             _horizontalMovement = 0f;
-            ProcessMovementStateFrames(MovementState.Land, _frameData_Land, MovementState.Idle);
+            ProcessMovementStateFrames(MovementState.Land, _frameData.land, MovementState.Idle);
         }
 
         if (movementState == MovementState.Fall ||
@@ -200,7 +249,7 @@ public class PlayerController : MonoBehaviour
             _horizontalMovement -= playerGravity;
             _horizontalMovement = Mathf.Clamp(_horizontalMovement, -maxFallSpeed, playerJumpForce);
             // Loop fall animation
-            ProcessMovementStateFrames(MovementState.Fall, _frameData_Fall);
+            ProcessMovementStateFrames(MovementState.Fall, _frameData.fall);
         }
 
     }
@@ -211,35 +260,24 @@ public class PlayerController : MonoBehaviour
     private void InitializeFramedata()
     {
         // Ignore JSON loading now, just put something so we can test the feature!
-        _frameData_Land = new int[3];
-        _frameData_Land[0] = 2;
-        _frameData_Land[1] = 5;
-        _frameData_Land[2] = 15;
+        HitBox[] hitboxes = new HitBox[1]{
+            new HitBox(0, new Vector3(), 1f, 2f, 2f, new Vector3(1f, 0f, 0f))
+        };
 
-        _frameData_Jump = new int[3];
-        _frameData_Jump[0] = 2;
-        _frameData_Jump[1] = 5;
-        _frameData_Jump[2] = 15;
+        Attack[] attacks = new Attack[1]{
+            new Attack(0, "jab1", new int[3]{2,5,15}, hitboxes)
+        };
 
-        _frameData_Attack = new int[3];
-        _frameData_Attack[0] = 2;
-        _frameData_Attack[1] = 5;
-        _frameData_Attack[2] = 15;
+        _frameData = new FrameData(
+            new int[3]{2,5,15}, // land
+            new int[3]{2,5,15}, // jump
+            new int[3]{2,5,15}, // doubleJump
+            attacks,            // attacks
+            new int[3]{2,5,15}, // walk
+            new int[3]{2,5,15}, // fall
+            new int[3]{2,5,15}  // hit
+        );
 
-        _frameData_Walk = new int[3];
-        _frameData_Walk[0] = 2;
-        _frameData_Walk[1] = 5;
-        _frameData_Walk[2] = 15;
-
-        _frameData_Fall = new int[3];
-        _frameData_Fall[0] = 2;
-        _frameData_Fall[1] = 5;
-        _frameData_Fall[2] = 15;
-
-        _frameData_Hit = new int[3];
-        _frameData_Hit[0] = 2;
-        _frameData_Hit[1] = 5;
-        _frameData_Hit[2] = 15;
     }
     /*
      * 
