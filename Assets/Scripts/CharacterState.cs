@@ -45,6 +45,7 @@ public class CharacterState
     private ActiveState currentActiveState;
     private int mStateActivationFrame = 0;
     private int aStateActivationFrame = 0;
+    private string extraInfo = "";
 
     public MovementState GetCurrentMovementState()
     {
@@ -61,10 +62,15 @@ public class CharacterState
         return lastMovementState;
     }
 
-    public void SetMovementState(MovementState value)
+    public void SetMovementState(MovementState value, string exInfo = "")
     {
-        lastMovementState = currentMovementState;
+        if (value != MovementState.Attack)
+        {
+            lastMovementState = currentMovementState;
+        }
+
         currentMovementState = value;
+        extraInfo = exInfo;
         SetActiveState(ActiveState.Start);
         mStateActivationFrame = Time.frameCount;
     }
@@ -83,5 +89,9 @@ public class CharacterState
     public int GetCurMovementStateFrame()
     {
         return Mathf.Clamp(Time.frameCount - mStateActivationFrame, 0, 100);
+    }
+    public string GetStateExtraInfo()
+    {
+        return extraInfo;
     }
 }

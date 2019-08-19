@@ -91,6 +91,7 @@ public class PlayerController : MonoBehaviour
     private float _verticalMovement;
     private float _horizontalMovement;
     private bool _isFacingRight = true;
+    private int _curAttackId = -1;
 
     void Start()
     {
@@ -134,18 +135,25 @@ public class PlayerController : MonoBehaviour
         ActiveState activeState = playerState.GetCurrentActiveState();
         int movementFrames = playerState.GetCurMovementStateFrame();
 
-        // Ground attack
+        // Ground jab
         if (attackInput && (movementState != MovementState.Jump &&
             movementState != MovementState.Fall &&
             movementState != MovementState.Land &&
             movementState != MovementState.Attack))
         {
-            playerState.SetMovementState(MovementState.Attack);
+            playerState.SetMovementState(MovementState.Attack, _frameData.attacks[0].name);
+            _curAttackId = 0;
         }
 
         if (movementState == MovementState.Attack)
         {
-            ProcessAttack(_frameData.attacks[0]);
+            if (attackInput && activeState == ActiveState.Active && playerState.GetStateExtraInfo() == "jab1")
+            {
+                playerState.SetMovementState(MovementState.Attack, _frameData.attacks[1].name);
+                _curAttackId = 1;
+            }
+
+            ProcessAttack(_frameData.attacks[_curAttackId]);
         }
     }
 
@@ -276,13 +284,16 @@ public class PlayerController : MonoBehaviour
     private void InitializeFramedata()
     {
         // Ignore JSON loading now, just put something so we can test the feature!
-        HitBox[] hitboxes = new HitBox[1]{
-            new HitBox(0, new Vector3(0.5f, 0f, 0f), 0.25f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f))
+        HitBox[] hitboxes = new HitBox[3]{
+            new HitBox(0, new Vector3(0.5f, 0f, 0f), 0.25f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f)),
+            new HitBox(0, new Vector3(0.5f, 0f, 0f), 0.5f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f)),
+            new HitBox(0, new Vector3(0.25f, 0f, 0f), 0.35f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f))
         };
 
-        Attack[] attacks = new Attack[2]{
-            new Attack(0, "jab1", new int[3]{2,5,15}, hitboxes),
+        Attack[] attacks = new Attack[3]{
+            new Attack(0, "jab1", new int[3]{2,5,10}, hitboxes),
             new Attack(1, "jab2", new int[3]{2,5,20}, hitboxes),
+            new Attack(2, "nAir", new int[3]{2,5,20}, hitboxes),
         };
 
         _frameData = new FrameData(
@@ -368,8 +379,8 @@ public class PlayerController : MonoBehaviour
                 transform.rotation,
                 transform
             );
-            hBox.GetComponent<HitboxObject>().ActivateHitbox(attack.hitBox[0], _isFacingRight);
-            GameObject.Destroy(hBox, attack.hitBox[0].hitBoxDuration);
+            hBox.GetComponent<HitboxObject>().ActivateHitbox(attack.hitBox[attack.id], _isFacingRight);
+            GameObject.Destroy(hBox, attack.hitBox[attack.id].hitBoxDuration);
         }
         else if (currentActiveFrame >= stopFrame &&
                 activeState == ActiveState.Active)
@@ -379,7 +390,13 @@ public class PlayerController : MonoBehaviour
         else if (currentActiveFrame >= stopFrame &&
                 activeState == ActiveState.Stopping)
         {
-            playerState.SetMovementState(playerState.GetLastMovementState());
+            MovementState lastState = playerState.GetLastMovementState(); 
+            if (lastState == MovementState.Attack)
+            {
+                lastState = MovementState.Idle;
+            }
+
+            playerState.SetMovementState(lastState);
         }
     }
 
@@ -408,7 +425,7 @@ public class PlayerController : MonoBehaviour
     
     private bool GetAttackInput()
     {
-        if (CrossPlatformInputManager.GetButton("Fire1"))
+        if (CrossPlatformInputManager.GetButtonDown("Fire1"))
         {
             return true;
         }

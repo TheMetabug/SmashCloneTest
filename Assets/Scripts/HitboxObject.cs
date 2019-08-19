@@ -11,7 +11,9 @@ public class HitboxObject : MonoBehaviour
 
         float xDirMultiplier = 1f;
         if (!_isFacingRight)
+        {
             xDirMultiplier = -1f;
+        }
 
         SphereCollider sCollider = GetComponent<SphereCollider>();
 
