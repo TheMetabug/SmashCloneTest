@@ -91,6 +91,9 @@ public class PlayerController : MonoBehaviour
     private float _verticalMovement;
     private float _horizontalMovement;
     private bool _isFacingRight = true;
+    private bool _isJumpActive = false;
+    private bool _isOnGround = false;
+    private bool _hasLanded = false;
     private int _curAttackId = -1;
 
     void Start()
@@ -136,23 +139,32 @@ public class PlayerController : MonoBehaviour
         int movementFrames = playerState.GetCurMovementStateFrame();
 
         // Ground jab
-        if (attackInput && (movementState != MovementState.Jump &&
-            movementState != MovementState.Fall &&
-            movementState != MovementState.Land &&
+        if (attackInput &&
+           (movementState == MovementState.Idle &&
             movementState != MovementState.Attack))
         {
             playerState.SetMovementState(MovementState.Attack, _frameData.attacks[0].name);
             _curAttackId = 0;
         }
+        // Second jab (when jab 1 is in progress and you input attack input)
+        if (attackInput &&
+            activeState == ActiveState.Active && playerState.GetStateExtraInfo() == "jab1" && 
+            movementState != MovementState.Attack)
+        {
+            playerState.SetMovementState(MovementState.Attack, _frameData.attacks[1].name);
+            _curAttackId = 1;
+        }
+        // Nair (Neutral air input)
+        if (attackInput && (movementState == MovementState.Jump && movementState != MovementState.Attack) || 
+            attackInput && (movementState == MovementState.Fall && movementState != MovementState.Attack)) 
+        {
+            playerState.SetMovementState(MovementState.Attack, _frameData.attacks[2].name);
+            _curAttackId = 2;
+        }
 
+        // 
         if (movementState == MovementState.Attack)
         {
-            if (attackInput && activeState == ActiveState.Active && playerState.GetStateExtraInfo() == "jab1")
-            {
-                playerState.SetMovementState(MovementState.Attack, _frameData.attacks[1].name);
-                _curAttackId = 1;
-            }
-
             ProcessAttack(_frameData.attacks[_curAttackId]);
         }
     }
@@ -217,7 +229,8 @@ public class PlayerController : MonoBehaviour
         MovementState movementState = playerState.GetCurrentMovementState();
         bool isJumpInput = GetJumpInput();
         // If player has pressed jump and is not on unwanted state, enable jump state
-        if (isJumpInput && (movementState != MovementState.Jump &&
+        if (isJumpInput && _hasLanded && 
+           (movementState != MovementState.Jump &&
             movementState != MovementState.Fall &&
             movementState != MovementState.Land &&
             movementState != MovementState.Attack))
@@ -231,13 +244,43 @@ public class PlayerController : MonoBehaviour
                 transform.localPosition.y + 0.2f,
                 transform.localPosition.z
             );
+
+            _hasLanded = false;
+            StartCoroutine("JumpForce");
         }
         // Go upwards and play the animation on loop until fall animation starts
         else if (movementState == MovementState.Jump)
         {
-            _horizontalMovement = playerJumpForce;
             ProcessMovementStateFrames(MovementState.Jump, _frameData.jump, MovementState.Fall);
         }
+
+        if (_isJumpActive)
+        {
+            _horizontalMovement = playerJumpForce;
+        }
+    }
+
+    /*
+     * Give player the force when jump has been inputted. Player can change states while going "upwards" so that's why
+     * this is processed by coroutine. Example: press jump and then attack to use "nair" attack.
+     */
+    IEnumerator JumpForce()
+    {
+        _isJumpActive = true;
+        int jumpStartFrame = Time.frameCount;
+        int curJumpFrame = 0;
+        int frameDataIndex = _frameData.jump.Length - 1;
+        while (_isJumpActive)
+        {
+            curJumpFrame = Time.frameCount - jumpStartFrame;
+            // get LAST framedata frame number from jump. Then the "jump" has ended.
+            if (curJumpFrame >= _frameData.jump[frameDataIndex])
+            {
+                _isJumpActive = false;
+            }
+            yield return null;
+        }
+        yield return null;
     }
 
     private void ProcessFall()
@@ -245,34 +288,44 @@ public class PlayerController : MonoBehaviour
         MovementState movementState = playerState.GetCurrentMovementState();
         ActiveState activeState = playerState.GetCurrentActiveState();
         float delta = Time.deltaTime;
-        
-        // Land on the ground animation
-        if (movementState == MovementState.Land)
+
+        if (_groundCollider.isTouching() &&
+            _groundCollider.whatTagCollisionHas() == "Stage")
         {
-            _horizontalMovement = 0f;
-            ProcessMovementStateFrames(MovementState.Land, _frameData.land, MovementState.Idle);
+            _isOnGround = true;
+        }
+        else
+        {
+            _isOnGround = false;
         }
 
-        if (movementState == MovementState.Fall ||
-            !_groundCollider.isTouching() && movementState == MovementState.Attack ||
-            !_groundCollider.isTouching() && movementState == MovementState.Idle)
+        if (!_isJumpActive && !_isOnGround && !_hasLanded)
         {
-            if (_groundCollider.isTouching() &&
-                _groundCollider.whatTagCollisionHas() == "Stage")
-            {
-                playerState.SetMovementState(MovementState.Land);
-                _horizontalMovement = 0f;
-                // TODO: make this check landing height by platform, not default -1 !!
-                transform.localPosition = new Vector3(
-                    transform.localPosition.x,
-                    -1.000f,
-                    transform.localPosition.z
-                );
-            }
             // Fall towards the ground. Gravity pulls character down but locks to maxFallSpeed
             _horizontalMovement -= playerGravity;
             _horizontalMovement = Mathf.Clamp(_horizontalMovement, -maxFallSpeed, playerJumpForce);
-            // Loop fall animation
+        }
+        else if (!_isJumpActive && _isOnGround && !_hasLanded)
+        {
+            playerState.SetMovementState(MovementState.Land);
+            _horizontalMovement = 0f;
+            // TODO: make this check landing height by platform, not default -1 !!
+            transform.localPosition = new Vector3(
+                transform.localPosition.x,
+                -1.000f,
+                transform.localPosition.z
+            );
+            _hasLanded = true;
+        }
+
+
+        if (movementState == MovementState.Land)
+        {
+            ProcessMovementStateFrames(MovementState.Land, _frameData.land, MovementState.Idle);
+        }
+
+        if (movementState == MovementState.Fall)
+        {
             ProcessMovementStateFrames(MovementState.Fall, _frameData.fall);
         }
 
@@ -285,25 +338,27 @@ public class PlayerController : MonoBehaviour
     {
         // Ignore JSON loading now, just put something so we can test the feature!
         HitBox[] hitboxes = new HitBox[3]{
-            new HitBox(0, new Vector3(0.5f, 0f, 0f), 0.25f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f)),
-            new HitBox(0, new Vector3(0.5f, 0f, 0f), 0.5f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f)),
-            new HitBox(0, new Vector3(0.25f, 0f, 0f), 0.35f, 2f, 2f, 0.25f, new Vector3(1f, 0f, 0f))
+                   // ID            Position            Radius  DMG LaunchPow   HBdur   LaunchDir   
+            new HitBox(0, new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 1
+            new HitBox(1, new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 2
+            new HitBox(2, new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f))  // nair
         };
 
         Attack[] attacks = new Attack[3]{
-            new Attack(0, "jab1", new int[3]{2,5,10}, hitboxes),
-            new Attack(1, "jab2", new int[3]{2,5,20}, hitboxes),
-            new Attack(2, "nAir", new int[3]{2,5,20}, hitboxes),
+        //            ID     NAME               S   A   ST  END
+            new Attack(0,   "jab1",   new int[4]{2, 5,  12, 15},    hitboxes),
+            new Attack(1,   "jab2",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(2,   "nAir",   new int[4]{7, 10, 20, 24},    hitboxes),
         };
 
         _frameData = new FrameData(
-            new int[3]{2,5,15}, // land
-            new int[3]{2,5,15}, // jump
-            new int[3]{2,5,15}, // doubleJump
+            new int[4]{2,5,8,15}, // land
+            new int[4]{2,5,8,15}, // jump
+            new int[4]{2,5,8,15}, // doubleJump
             attacks,            // attacks
-            new int[3]{2,5,15}, // walk
-            new int[3]{2,5,15}, // fall
-            new int[3]{2,5,15}  // hit
+            new int[4]{2,5,8,15}, // walk
+            new int[4]{2,5,8,15}, // fall
+            new int[4]{2,5,8,15}  // hit
         );
 
     }
@@ -315,7 +370,8 @@ public class PlayerController : MonoBehaviour
     {   
         int warmupFrame = fData[0];
         int activeFrame = fData[1];
-        int stopFrame = fData[2];
+        int stoppingFrame = fData[2];
+        int stopFrame = fData[3];
 
         int currentActiveFrame = playerState.GetCurMovementStateFrame();
         ActiveState activeState = playerState.GetCurrentActiveState();
@@ -329,6 +385,7 @@ public class PlayerController : MonoBehaviour
         if (currentActiveFrame >= warmupFrame &&
                 activeState == ActiveState.Start)
         {
+            ClearHitBoxes(); // Just in case if there is hitboxes activate, clear them.
             playerState.SetActiveState(ActiveState.Warmup);
         }
         else if (currentActiveFrame >= activeFrame &&
@@ -336,8 +393,13 @@ public class PlayerController : MonoBehaviour
         {
             playerState.SetActiveState(ActiveState.Active);
         }
+        else if (currentActiveFrame >= stoppingFrame &&
+                activeState == ActiveState.Active)
+        {
+            playerState.SetActiveState(ActiveState.Stopping);
+        }
         else if (currentActiveFrame >= stopFrame &&
-                activeState == ActiveState.Active &&
+                activeState == ActiveState.Stopping &&
                 nextState != MovementState.Undefined)
         {
             playerState.SetMovementState(nextState);
@@ -349,44 +411,41 @@ public class PlayerController : MonoBehaviour
      */
     private void ProcessAttack(Attack attack)
     {   
-        Vector3 locPos = transform.localPosition;
         int warmupFrame = attack.frameData[0];
         int activeFrame = attack.frameData[1];
-        int stopFrame = attack.frameData[2];
+        int stoppingFrame = attack.frameData[2];
+        int stopFrame = attack.frameData[3];
 
         int currentActiveFrame = playerState.GetCurMovementStateFrame();
         ActiveState activeState = playerState.GetCurrentActiveState();
 
+        // START from inactive (this is rare case. But done just in case)
         if (currentActiveFrame >= 0 &&
             activeState == ActiveState.Inactive)
         {
             playerState.SetActiveState(ActiveState.Start);
         }
         
+        // START to WARMUP transition
         if (currentActiveFrame >= warmupFrame &&
                 activeState == ActiveState.Start)
         {
             playerState.SetActiveState(ActiveState.Warmup);
         }
+        // WARMUP to ACTIVE transition. Also activate hitbox.
         else if (currentActiveFrame >= activeFrame &&
                 activeState == ActiveState.Warmup)
         {
+            CreateAndActivateHitBox(attack);
             playerState.SetActiveState(ActiveState.Active);
-            // Create hitbox
-            GameObject hBox = Instantiate(
-                hitBoxObject,
-                locPos,
-                transform.rotation,
-                transform
-            );
-            hBox.GetComponent<HitboxObject>().ActivateHitbox(attack.hitBox[attack.id], _isFacingRight);
-            GameObject.Destroy(hBox, attack.hitBox[attack.id].hitBoxDuration);
         }
-        else if (currentActiveFrame >= stopFrame &&
+        // ACTIVE to STOPPING transition.
+        else if (currentActiveFrame >= stoppingFrame &&
                 activeState == ActiveState.Active)
         {
             playerState.SetActiveState(ActiveState.Stopping);
         }
+        // STOPPING to STOP transition
         else if (currentActiveFrame >= stopFrame &&
                 activeState == ActiveState.Stopping)
         {
@@ -397,6 +456,37 @@ public class PlayerController : MonoBehaviour
             }
 
             playerState.SetMovementState(lastState);
+        }
+    }
+
+    private void CreateAndActivateHitBox(Attack _attack)
+    {
+        Vector3 locPos = transform.localPosition;
+        // Create hitbox (this will be activated in "active")
+        GameObject hBox = Instantiate(
+            hitBoxObject,
+            locPos,
+            transform.rotation,
+            transform
+        );
+        hBox.GetComponent<HitboxObject>().ActivateHitbox(_attack.hitBox[_attack.id], _isFacingRight);
+        GameObject.Destroy(hBox, _attack.hitBox[_attack.id].hitBoxDuration);
+    }
+
+    /*
+     * This clears hitboxes. Actually wont "delete" them but deactivates them instead. Every hitbox is marked for deletion with a timer.
+     * So if we just deactivate 
+     */
+    private void ClearHitBoxes()
+    {
+        int childCount = transform.childCount;
+        for (int i = 0; i <= childCount - 1; i++)
+        {
+            GameObject gObj = transform.GetChild(i).gameObject;
+            if (gObj.tag == "AttackHitBox")
+            {
+                gObj.SetActive(false);
+            }
         }
     }
 
