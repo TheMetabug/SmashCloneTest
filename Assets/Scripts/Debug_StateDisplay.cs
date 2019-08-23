@@ -20,11 +20,13 @@ public class Debug_StateDisplay : MonoBehaviour
         string movementStateName = System.Enum.GetName(typeof(MovementState),_cState.GetCurrentMovementState());
         string curActiveFrame = _cState.GetCurActiveStateFrame().ToString();
         string curMovementFrame = _cState.GetCurMovementStateFrame().ToString();
+        string curAttackName = playerCtrl.playerState.GetStateExtraInfo();
         _textMesh.text =
             "MovementState: " + movementStateName + "\n" +
             "MovementFrame: " + curMovementFrame + "\n" +
             "ActiveState: " + activeStateName + "\n" +
-            "ActiveFrame: " + curActiveFrame + "\n"
+            "ActiveFrame: " + curActiveFrame + "\n" +
+            curAttackName + "\n"
             
         ;
     }

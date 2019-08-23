@@ -147,9 +147,10 @@ public class PlayerController : MonoBehaviour
             _curAttackId = 0;
         }
         // Second jab (when jab 1 is in progress and you input attack input)
-        if (attackInput &&
-            activeState == ActiveState.Active && playerState.GetStateExtraInfo() == "jab1" && 
-            movementState != MovementState.Attack)
+        if (attackInput && 
+            movementState == MovementState.Attack && 
+            activeState == ActiveState.Active &&
+            playerState.GetStateExtraInfo() == "jab1" )
         {
             playerState.SetMovementState(MovementState.Attack, _frameData.attacks[1].name);
             _curAttackId = 1;
@@ -178,7 +179,7 @@ public class PlayerController : MonoBehaviour
 
         _verticalMovement = 0f;
 
-        if (movementState != MovementState.Land && movementState != MovementState.Attack)
+        if (movementState != MovementState.Land || (movementState == MovementState.Attack && !_isOnGround))
         {
             if (xAxisInput < -0.1f || xAxisInput > 0.1f)
             {
@@ -346,7 +347,7 @@ public class PlayerController : MonoBehaviour
 
         Attack[] attacks = new Attack[3]{
         //            ID     NAME               S   A   ST  END
-            new Attack(0,   "jab1",   new int[4]{2, 5,  12, 15},    hitboxes),
+            new Attack(0,   "jab1",   new int[4]{2, 4,  14, 15},    hitboxes),
             new Attack(1,   "jab2",   new int[4]{4, 9,  14, 20},    hitboxes),
             new Attack(2,   "nAir",   new int[4]{7, 10, 20, 24},    hitboxes),
         };
