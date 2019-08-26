@@ -31,6 +31,35 @@ public enum MovementState
     Undefined,
 }
 
+public enum AttackID
+{
+    Jab01,
+    Jab02,
+    Jab03,
+    Jab04,
+    Jab05,
+    Jab0R,
+    FTilt01,
+    FTilt02,
+    FTilt03,
+    FTilt04,
+    FTilt05,
+    UTilt01,
+    UTilt02,
+    UTilt03,
+    UTilt04,
+    UTilt05,
+    DTilt01,
+    DTilt02,
+    DTilt03,
+    DTilt04,
+    DTilt05,
+    Fair01,
+    Uair01,
+    Dair01,
+    Nair01,
+}
+
 /*
  * Simple state change functions to keep character "state" in check
  * You can set and get states currently activated to a character.

@@ -36,10 +36,10 @@ public struct FrameData
 public struct Attack
 {
     public string name;
-    public int id;
+    public AttackID id;
     public int[] frameData;
     public HitBox[] hitBox;
-    public Attack(int _id, string _name, int[] _frameData, HitBox[] _hitBox)
+    public Attack(AttackID _id, string _name, int[] _frameData, HitBox[] _hitBox)
     {
         id = _id;
         name = _name;
@@ -55,14 +55,14 @@ public struct Attack
  */
 public struct HitBox
 {
-    public int id;
+    public AttackID id;
     public Vector3 position;
     public float radius;
     public float damage;
     public float launchPower;
     public float hitBoxDuration;
     public Vector3 launchDirection;
-    public HitBox(int _id, Vector3 _position, float _radius, float _damage, float _launchPower, float _hitBoxDuration, Vector3 _launchDirection)
+    public HitBox(AttackID _id, Vector3 _position, float _radius, float _damage, float _launchPower, float _hitBoxDuration, Vector3 _launchDirection)
     {
         id = _id;
         position = _position;
@@ -81,6 +81,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float playerGravity = 2f;
     [SerializeField] float maxFallSpeed = 5f;
     [SerializeField] float playerJumpForce = 9f;
+    [SerializeField] bool sandBagMode = false;
     [SerializeField] public GameObject hitBoxObject;
     public CharacterState playerState = new CharacterState();
     // [SerializeField] public CharacterState playerAttackState = new CharacterState();
@@ -133,41 +134,105 @@ public class PlayerController : MonoBehaviour
 
     private void ProcessAttack()
     {   
+        float xAxisInput = GetXAxisInput();
+        float yAxisInput = GetYAxisInput();
         bool attackInput = GetAttackInput();
         MovementState movementState = playerState.GetCurrentMovementState();
         ActiveState activeState = playerState.GetCurrentActiveState();
         int movementFrames = playerState.GetCurMovementStateFrame();
 
-        // Ground jab
-        if (attackInput &&
-           (movementState == MovementState.Idle &&
-            movementState != MovementState.Attack))
+        if (attackInput)
         {
-            playerState.SetMovementState(MovementState.Attack, _frameData.attacks[0].name);
-            _curAttackId = 0;
-        }
-        // Second jab (when jab 1 is in progress and you input attack input)
-        if (attackInput && 
-            movementState == MovementState.Attack && 
-            activeState == ActiveState.Active &&
-            playerState.GetStateExtraInfo() == "jab1" )
-        {
-            playerState.SetMovementState(MovementState.Attack, _frameData.attacks[1].name);
-            _curAttackId = 1;
-        }
-        // Nair (Neutral air input)
-        if (attackInput && (movementState == MovementState.Jump && movementState != MovementState.Attack) || 
-            attackInput && (movementState == MovementState.Fall && movementState != MovementState.Attack)) 
-        {
-            playerState.SetMovementState(MovementState.Attack, _frameData.attacks[2].name);
-            _curAttackId = 2;
-        }
+            // Ground jab
+            if (xAxisInput == 0 && yAxisInput == 0)
+            {
+                if (movementState == MovementState.Idle &&
+                    movementState != MovementState.Attack)
+                {
+                    SetPlayerAttackState(AttackID.Jab01);
+                }
+                // Second jab (when jab 1 is in progress and you input attack input)
+                else if (movementState == MovementState.Attack && 
+                        activeState == ActiveState.Active &&
+                        _curAttackId == (int)AttackID.Jab01)
+                {
+                    SetPlayerAttackState(AttackID.Jab02);
+                }
+                // Third jab
+                else if (movementState == MovementState.Attack && 
+                        activeState == ActiveState.Active &&
+                        _curAttackId == (int)AttackID.Jab02)
+                {
+                    SetPlayerAttackState(AttackID.Jab03);
+                }
+            }
+            else if (xAxisInput != 0 || yAxisInput != 0)
+            {
+                // Forward tilt attack
+                if (_isOnGround && xAxisInput != 0 &&
+                    (movementState == MovementState.Walk ||
+                    movementState != MovementState.Idle))
+                {
+                    SetPlayerAttackState(AttackID.FTilt01);
+                }
+                // Up tilt attack
+                else if (_isOnGround && yAxisInput > 0 &&
+                        (movementState == MovementState.Walk ||
+                        movementState == MovementState.Idle))
+                {
+                    SetPlayerAttackState(AttackID.UTilt01);
+                }
+                // Down tilt attack
+                else if (_isOnGround && yAxisInput < 0 &&
+                        (movementState == MovementState.Walk ||
+                        movementState == MovementState.Idle))
+                {
+                    SetPlayerAttackState(AttackID.DTilt01);
+                }
+            }
 
+            // Nair (Neutral air input)
+            if (xAxisInput == 0 && yAxisInput == 0 &&
+                (attackInput && (movementState == MovementState.Jump && movementState != MovementState.Attack) || 
+                attackInput && (movementState == MovementState.Fall && movementState != MovementState.Attack))) 
+            {
+                SetPlayerAttackState(AttackID.Nair01);
+            }
+            // Fair (Forward air)
+            else if (xAxisInput != 0 &&
+                    (attackInput && (movementState == MovementState.Jump && movementState != MovementState.Attack) || 
+                    attackInput && (movementState == MovementState.Fall && movementState != MovementState.Attack))) 
+            {
+                SetPlayerAttackState(AttackID.Fair01);
+            }
+            // Uair (Forward air)
+            else if (xAxisInput == 0 && yAxisInput > 0 &&
+                    (attackInput && (movementState == MovementState.Jump && movementState != MovementState.Attack) || 
+                    attackInput && (movementState == MovementState.Fall && movementState != MovementState.Attack))) 
+            {
+                SetPlayerAttackState(AttackID.Uair01);
+            }
+            // Dair (Forward air)
+            else if (xAxisInput == 0 && yAxisInput < 0 &&
+                    (attackInput && (movementState == MovementState.Jump && movementState != MovementState.Attack) || 
+                    attackInput && (movementState == MovementState.Fall && movementState != MovementState.Attack))) 
+            {
+                SetPlayerAttackState(AttackID.Dair01);
+            }
+        }
         // 
         if (movementState == MovementState.Attack)
         {
             ProcessAttack(_frameData.attacks[_curAttackId]);
         }
+    }
+
+    private void SetPlayerAttackState(AttackID atkId)
+    {
+        int atkIndex = (int)atkId;
+        Debug.Log(atkIndex);
+        playerState.SetMovementState(MovementState.Attack, _frameData.attacks[atkIndex].name);
+        _curAttackId = atkIndex;
     }
 
     private void ProcessWalk()
@@ -179,7 +244,8 @@ public class PlayerController : MonoBehaviour
 
         _verticalMovement = 0f;
 
-        if (movementState != MovementState.Land || (movementState == MovementState.Attack && !_isOnGround))
+        if (movementState != MovementState.Land && _curAttackId != (int)AttackID.FTilt01 ||
+           (movementState == MovementState.Attack && !_isOnGround))
         {
             if (xAxisInput < -0.1f || xAxisInput > 0.1f)
             {
@@ -338,18 +404,62 @@ public class PlayerController : MonoBehaviour
     private void InitializeFramedata()
     {
         // Ignore JSON loading now, just put something so we can test the feature!
-        HitBox[] hitboxes = new HitBox[3]{
-                   // ID            Position            Radius  DMG LaunchPow   HBdur   LaunchDir   
-            new HitBox(0, new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 1
-            new HitBox(1, new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 2
-            new HitBox(2, new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f))  // nair
+        HitBox[] hitboxes = new HitBox[25] {
+                   // ID                           Hitbox Position       Radius  DMG  LaunchPow   HBdur   LaunchDir   
+            new HitBox(AttackID.Jab01,      new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 1
+            new HitBox(AttackID.Jab02,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 2
+            new HitBox(AttackID.Jab03,      new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 3
+            new HitBox(AttackID.Jab04,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 4
+            new HitBox(AttackID.Jab05,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 5
+            new HitBox(AttackID.Jab0R,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab r
+            new HitBox(AttackID.FTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 1
+            new HitBox(AttackID.FTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 2
+            new HitBox(AttackID.FTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 3
+            new HitBox(AttackID.FTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 4
+            new HitBox(AttackID.FTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 5
+            new HitBox(AttackID.UTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 1
+            new HitBox(AttackID.UTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 2
+            new HitBox(AttackID.UTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 3
+            new HitBox(AttackID.UTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 4
+            new HitBox(AttackID.UTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 5
+            new HitBox(AttackID.DTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 1
+            new HitBox(AttackID.DTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 2
+            new HitBox(AttackID.DTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 3
+            new HitBox(AttackID.DTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 4
+            new HitBox(AttackID.DTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 5
+            new HitBox(AttackID.Fair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)), // fAir
+            new HitBox(AttackID.Uair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)), // uair
+            new HitBox(AttackID.Dair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)), // dair
+            new HitBox(AttackID.Nair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)) // nair
         };
 
-        Attack[] attacks = new Attack[3]{
-        //            ID     NAME               S   A   ST  END
-            new Attack(0,   "jab1",   new int[4]{2, 4,  14, 15},    hitboxes),
-            new Attack(1,   "jab2",   new int[4]{4, 9,  14, 20},    hitboxes),
-            new Attack(2,   "nAir",   new int[4]{7, 10, 20, 24},    hitboxes),
+        Attack[] attacks = new Attack[25]{
+        //            ID                     NAME               S   A   ST  END
+            new Attack(AttackID.Jab01,      "Jab01",     new int[4]{2, 4,  14, 15},    hitboxes),
+            new Attack(AttackID.Jab02,      "Jab02",     new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.Jab03,      "Jab03",     new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.Jab04,      "Jab04",     new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.Jab05,      "Jab05",     new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.Jab0R,      "Jab0R",     new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.FTilt01,    "FTilt01",   new int[4]{2, 4,  14, 15},    hitboxes),
+            new Attack(AttackID.FTilt02,    "FTilt02",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.FTilt03,    "FTilt03",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.FTilt04,    "FTilt04",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.FTilt05,    "FTilt05",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.UTilt01,    "UTilt01",   new int[4]{2, 4,  14, 15},    hitboxes),
+            new Attack(AttackID.UTilt02,    "UTilt02",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.UTilt03,    "UTilt03",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.UTilt04,    "UTilt04",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.UTilt05,    "UTilt05",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.DTilt01,    "DTilt01",   new int[4]{2, 4,  14, 15},    hitboxes),
+            new Attack(AttackID.DTilt02,    "DTilt02",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.DTilt03,    "DTilt03",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.DTilt04,    "DTilt04",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.DTilt05,    "DTilt05",   new int[4]{4, 9,  14, 20},    hitboxes),
+            new Attack(AttackID.Fair01,     "Fair01",    new int[4]{7, 10, 20, 24},    hitboxes),
+            new Attack(AttackID.Uair01,     "Uair01",    new int[4]{7, 10, 20, 24},    hitboxes),
+            new Attack(AttackID.Dair01,     "Dair01",    new int[4]{7, 10, 20, 24},    hitboxes),
+            new Attack(AttackID.Nair01,     "Nair01",    new int[4]{7, 10, 20, 24},    hitboxes),
         };
 
         _frameData = new FrameData(
@@ -377,28 +487,32 @@ public class PlayerController : MonoBehaviour
         int currentActiveFrame = playerState.GetCurMovementStateFrame();
         ActiveState activeState = playerState.GetCurrentActiveState();
 
+        // START from inactive (this is rare case. But done just in case)
         if (currentActiveFrame >= 0 &&
             activeState == ActiveState.Inactive)
         {
             playerState.SetActiveState(ActiveState.Start);
         }
-        
+        // WARMUP to ACTIVE transition.
         if (currentActiveFrame >= warmupFrame &&
                 activeState == ActiveState.Start)
         {
             ClearHitBoxes(); // Just in case if there is hitboxes activate, clear them.
             playerState.SetActiveState(ActiveState.Warmup);
         }
+        // WARMUP to ACTIVE transition. Also activate hitbox.
         else if (currentActiveFrame >= activeFrame &&
                 activeState == ActiveState.Warmup)
         {
             playerState.SetActiveState(ActiveState.Active);
         }
+        // ACTIVE to STOPPING transition.
         else if (currentActiveFrame >= stoppingFrame &&
                 activeState == ActiveState.Active)
         {
             playerState.SetActiveState(ActiveState.Stopping);
         }
+        // STOPPING to STOP transition
         else if (currentActiveFrame >= stopFrame &&
                 activeState == ActiveState.Stopping &&
                 nextState != MovementState.Undefined)
@@ -455,7 +569,7 @@ public class PlayerController : MonoBehaviour
             {
                 lastState = MovementState.Idle;
             }
-
+            _curAttackId = -1;
             playerState.SetMovementState(lastState);
         }
     }
@@ -470,8 +584,8 @@ public class PlayerController : MonoBehaviour
             transform.rotation,
             transform
         );
-        hBox.GetComponent<HitboxObject>().ActivateHitbox(_attack.hitBox[_attack.id], _isFacingRight);
-        GameObject.Destroy(hBox, _attack.hitBox[_attack.id].hitBoxDuration);
+        hBox.GetComponent<HitboxObject>().ActivateHitbox(_attack.hitBox[(int)_attack.id], _isFacingRight);
+        GameObject.Destroy(hBox, _attack.hitBox[(int)_attack.id].hitBoxDuration);
     }
 
     /*
@@ -493,21 +607,51 @@ public class PlayerController : MonoBehaviour
 
     private float GetXAxisInput()
     {
-        float inputDir = 0f;
-        if (Input.GetKey(KeyCode.D))
+        float inputDirX = CrossPlatformInputManager.GetAxis("Horizontal");
+        float deadZoneX = 0.25f; // TODO: remove this placeholder
+        if (!sandBagMode)
         {
-           inputDir += 1f;
+            if (inputDirX > deadZoneX)
+            {
+            inputDirX += 1f;
+            }
+            if (inputDirX < -deadZoneX)
+            {
+            inputDirX += -1f;
+            }
+            return inputDirX;
         }
-        if (Input.GetKey(KeyCode.A))
+        else
         {
-           inputDir += -1f;
+            return 0f;
         }
-        return inputDir;
+    }
+
+    private float GetYAxisInput()
+    {
+        float inputDirY = CrossPlatformInputManager.GetAxis("Vertical");
+        float deadZoneY = 0.25f; // TODO: remove this placeholder
+        if (!sandBagMode)
+        {
+            if (inputDirY > deadZoneY)
+            {
+            inputDirY += 1f;
+            }
+            if (inputDirY < -deadZoneY)
+            {
+            inputDirY += -1f;
+            }
+            return inputDirY;
+        }
+        else
+        {
+            return 0;
+        }
     }
 
     private bool GetJumpInput()
     {
-        if (CrossPlatformInputManager.GetButton("Jump"))
+        if (CrossPlatformInputManager.GetButton("Jump") && !sandBagMode)
         {
             return true;
         }
@@ -516,7 +660,7 @@ public class PlayerController : MonoBehaviour
     
     private bool GetAttackInput()
     {
-        if (CrossPlatformInputManager.GetButtonDown("Fire1"))
+        if (CrossPlatformInputManager.GetButtonDown("Fire1") && !sandBagMode)
         {
             return true;
         }
