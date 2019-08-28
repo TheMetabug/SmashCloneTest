@@ -119,6 +119,7 @@ public class PlayerController : MonoBehaviour
         if (sandBagMode || _timeForHitStun > 0f)
         {
             _disableControls = true;
+            _timeForHitStun -= Time.deltaTime;
         }
         else
         {
@@ -240,7 +241,7 @@ public class PlayerController : MonoBehaviour
         }
         if (movementState == MovementState.Hit)
         {
-            ProcessMovement();
+            ProcessMovementStateFrames(MovementState.Hit, _frameData.hit, MovementState.Idle);
         }
     }
 
@@ -428,7 +429,7 @@ public class PlayerController : MonoBehaviour
             new HitBox(AttackID.Jab04,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 4
             new HitBox(AttackID.Jab05,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 5
             new HitBox(AttackID.Jab0R,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab r
-            new HitBox(AttackID.FTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 1
+            new HitBox(AttackID.FTilt01,    new Vector3(0.75f, 0f, 0f),    0.25f,  2f,     2f,    0.075f, new Vector3(1f, 0f, 0f)), // ftilt 1
             new HitBox(AttackID.FTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 2
             new HitBox(AttackID.FTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 3
             new HitBox(AttackID.FTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 4
@@ -667,28 +668,28 @@ public class PlayerController : MonoBehaviour
 
     private bool GetJumpInput()
     {
-        if (CrossPlatformInputManager.GetButton("Jump") && !_disableControls)
+        if (CrossPlatformInputManager.GetButton("Jump"))
         {
-            return true;
+            if (!_disableControls)
+                return true;
         }
         return false;
     }
     
     private bool GetAttackInput()
     {
-        if (CrossPlatformInputManager.GetButtonDown("Fire1") && !_disableControls)
+        if (CrossPlatformInputManager.GetButtonDown("Fire1"))
         {
-            return true;
+            if (!_disableControls)
+                return true;
         }
         return false;
     }
 
-    public void CheckHurtBoxCollision(HitboxObject hBox) // Called by SendMessage [HitboxObject.cs]
+    public void CheckHurtBoxCollision(HitboxObject hBox) // Called by SendMessage [HurtBox.cs]
     {
-        Debug.Log(playerID);
         if (hBox.GetHitboxPlayerId() != playerID)
         {
-            Debug.Log("Got hit!");
             GetHitByAttackHitBox(hBox.GetHitboxProperties());
         }
     }
