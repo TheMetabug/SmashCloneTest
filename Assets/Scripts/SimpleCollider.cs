@@ -5,14 +5,22 @@ using UnityEngine;
 public class SimpleCollider : MonoBehaviour
 {
     private string _tagWhatColliderIsTouching = "";
+    private Collider _otherCollision;
+    private int _playerID;
+
+    void Start()
+    {
+        _playerID = transform.parent.parent.GetComponent<PlayerController>().playerID;
+    }
 
     void OnTriggerStay(Collider other)
     {
         _tagWhatColliderIsTouching = other.tag;
+        _otherCollision = other;
     }
     void OnTriggerExit(Collider other)
     {
-        _tagWhatColliderIsTouching = "";
+        ResetValues();
     }
 
     public bool isTouching()
@@ -25,5 +33,17 @@ public class SimpleCollider : MonoBehaviour
     public string whatTagCollisionHas()
     {
         return _tagWhatColliderIsTouching;
+    }
+    public Collider GetCollisionObject()
+    {
+        if (_tagWhatColliderIsTouching != "")
+            return _otherCollision;
+        return null;
+    }
+
+    private void ResetValues() 
+    {
+        _tagWhatColliderIsTouching = "";
+        _otherCollision = null;
     }
 }

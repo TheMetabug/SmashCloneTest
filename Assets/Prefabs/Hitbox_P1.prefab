@@ -13,8 +13,8 @@ GameObject:
   - component: {fileID: 5747382064847064855}
   - component: {fileID: 5747382064847064854}
   - component: {fileID: 5747382064847064841}
-  m_Layer: 11
-  m_Name: Hitbox
+  m_Layer: 16
+  m_Name: Hitbox_P1
   m_TagString: AttackHitBox
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -104,3 +104,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f28f7b31d95bc2c42a86630c940f87a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerID: 1

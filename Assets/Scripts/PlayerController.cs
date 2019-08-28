@@ -77,6 +77,7 @@ public struct HitBox
 
 public class PlayerController : MonoBehaviour
 {
+    [SerializeField] public int playerID = 1;
     [SerializeField] float walkSpeed = 2f;
     [SerializeField] float playerGravity = 2f;
     [SerializeField] float maxFallSpeed = 5f;
@@ -88,6 +89,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody _rigidBody;
     private Collider _mainCollider;
     private SimpleCollider _groundCollider;
+    private SimpleCollider _hurtBoxCollider;
     private FrameData _frameData;
     private float _verticalMovement;
     private float _horizontalMovement;
@@ -96,12 +98,15 @@ public class PlayerController : MonoBehaviour
     private bool _isOnGround = false;
     private bool _hasLanded = false;
     private int _curAttackId = -1;
+    private float _timeForHitStun = 0f;
+    private bool _disableControls = false;
 
     void Start()
     {
         _rigidBody = GetComponent<Rigidbody>();
         _mainCollider = GetComponent<Collider>();
         _groundCollider = transform.GetChild(0).transform.GetChild(0).GetComponent<SimpleCollider>();
+        _hurtBoxCollider = transform.GetChild(0).transform.GetChild(1).GetComponent<SimpleCollider>();
 
         playerState.SetMovementState(MovementState.Idle);
         playerState.SetActiveState(ActiveState.Inactive);
@@ -111,6 +116,14 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (sandBagMode || _timeForHitStun > 0f)
+        {
+            _disableControls = true;
+        }
+        else
+        {
+            _disableControls = false;
+        }
         ProcessMovement();
     }
 
@@ -225,12 +238,15 @@ public class PlayerController : MonoBehaviour
         {
             ProcessAttack(_frameData.attacks[_curAttackId]);
         }
+        if (movementState == MovementState.Hit)
+        {
+            ProcessMovement();
+        }
     }
 
     private void SetPlayerAttackState(AttackID atkId)
     {
         int atkIndex = (int)atkId;
-        Debug.Log(atkIndex);
         playerState.SetMovementState(MovementState.Attack, _frameData.attacks[atkIndex].name);
         _curAttackId = atkIndex;
     }
@@ -584,7 +600,7 @@ public class PlayerController : MonoBehaviour
             transform.rotation,
             transform
         );
-        hBox.GetComponent<HitboxObject>().ActivateHitbox(_attack.hitBox[(int)_attack.id], _isFacingRight);
+        hBox.GetComponent<HitboxObject>().ActivateHitbox(_attack.hitBox[(int)_attack.id], _isFacingRight, playerID);
         GameObject.Destroy(hBox, _attack.hitBox[(int)_attack.id].hitBoxDuration);
     }
 
@@ -651,7 +667,7 @@ public class PlayerController : MonoBehaviour
 
     private bool GetJumpInput()
     {
-        if (CrossPlatformInputManager.GetButton("Jump") && !sandBagMode)
+        if (CrossPlatformInputManager.GetButton("Jump") && !_disableControls)
         {
             return true;
         }
@@ -660,10 +676,26 @@ public class PlayerController : MonoBehaviour
     
     private bool GetAttackInput()
     {
-        if (CrossPlatformInputManager.GetButtonDown("Fire1") && !sandBagMode)
+        if (CrossPlatformInputManager.GetButtonDown("Fire1") && !_disableControls)
         {
             return true;
         }
         return false;
+    }
+
+    public void CheckHurtBoxCollision(HitboxObject hBox) // Called by SendMessage [HitboxObject.cs]
+    {
+        Debug.Log(playerID);
+        if (hBox.GetHitboxPlayerId() != playerID)
+        {
+            Debug.Log("Got hit!");
+            GetHitByAttackHitBox(hBox.GetHitboxProperties());
+        }
+    }
+
+    private void GetHitByAttackHitBox(HitBox hBox)
+    {
+        _timeForHitStun = (hBox.damage + hBox.launchPower) / 10;
+        playerState.SetMovementState(MovementState.Hit);
     }
 }

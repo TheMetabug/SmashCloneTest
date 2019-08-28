@@ -8,6 +8,11 @@ TagManager:
   - Stage
   - Collider_ground
   - AttackHitBox
+  - HurtBox
+  - HurtBox_P1
+  - HurtBox_P2
+  - HurtBox_P3
+  - HurtBox_P4
   layers:
   - Default
   - TransparentFX
@@ -21,14 +26,14 @@ TagManager:
   - Stage
   - GroundCollider
   - AttackHitBox
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - HurtBox_P1
+  - HurtBox_P2
+  - HurtBox_P3
+  - HurtBox_P4
+  - HitBox_P1
+  - HitBox_P2
+  - HitBox_P3
+  - HitBox_P4
   - 
   - 
   - 
