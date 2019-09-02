@@ -22,6 +22,7 @@ public class Debug_StateDisplay : MonoBehaviour
         string curMovementFrame = _cState.GetCurMovementStateFrame().ToString();
         string curAttackName = playerCtrl.playerState.GetStateExtraInfo();
         _textMesh.text =
+            "Damage: " + playerCtrl.damagePoints.ToString() + "\n" +
             "MovementState: " + movementStateName + "\n" +
             "MovementFrame: " + curMovementFrame + "\n" +
             "ActiveState: " + activeStateName + "\n" +

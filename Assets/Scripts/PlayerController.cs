@@ -78,6 +78,9 @@ public struct HitBox
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] public int playerID = 1;
+    [SerializeField] public float damagePoints = 0f;
+    [SerializeField] public Vector3 launchingDir = new Vector3(0f, 0f, 0f);
+    [SerializeField] public float launchingVel = 0f;
     [SerializeField] float walkSpeed = 2f;
     [SerializeField] float playerGravity = 2f;
     [SerializeField] float maxFallSpeed = 5f;
@@ -137,12 +140,24 @@ public class PlayerController : MonoBehaviour
 
         float delta = Time.deltaTime;
         Vector3 localPos = transform.localPosition;
+        Vector3 processedMovementVector = new Vector3();
 
-        Vector3 processedMovementVector = new Vector3(
-            localPos.x + (_verticalMovement * delta),
-            localPos.y + (_horizontalMovement * delta),
-            localPos.z
-        );
+        if (_timeForHitStun <= 0)
+        {
+            processedMovementVector = new Vector3(
+                localPos.x + (_verticalMovement * delta),
+                localPos.y + (_horizontalMovement * delta),
+                localPos.z
+            );
+        }
+        else
+        {
+            processedMovementVector = new Vector3(
+                localPos.x + (launchingDir.x * launchingVel),
+                localPos.y + (launchingDir.y * launchingVel),
+                localPos.z
+            );
+        }
         transform.localPosition = processedMovementVector;
     }
 
@@ -381,6 +396,7 @@ public class PlayerController : MonoBehaviour
         else
         {
             _isOnGround = false;
+            _hasLanded = false;
         }
 
         if (!_isJumpActive && !_isOnGround && !_hasLanded)
@@ -400,6 +416,11 @@ public class PlayerController : MonoBehaviour
                 transform.localPosition.z
             );
             _hasLanded = true;
+        }
+
+        if (movementState == MovementState.Idle && !_isOnGround)
+        {
+            playerState.SetMovementState(MovementState.Fall);
         }
 
 
@@ -423,31 +444,31 @@ public class PlayerController : MonoBehaviour
         // Ignore JSON loading now, just put something so we can test the feature!
         HitBox[] hitboxes = new HitBox[25] {
                    // ID                           Hitbox Position       Radius  DMG  LaunchPow   HBdur   LaunchDir   
-            new HitBox(AttackID.Jab01,      new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 1
-            new HitBox(AttackID.Jab02,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 2
-            new HitBox(AttackID.Jab03,      new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 3
-            new HitBox(AttackID.Jab04,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 4
-            new HitBox(AttackID.Jab05,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab 5
-            new HitBox(AttackID.Jab0R,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // jab r
-            new HitBox(AttackID.FTilt01,    new Vector3(0.75f, 0f, 0f),    0.25f,  2f,     2f,    0.075f, new Vector3(1f, 0f, 0f)), // ftilt 1
-            new HitBox(AttackID.FTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 2
-            new HitBox(AttackID.FTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 3
-            new HitBox(AttackID.FTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 4
-            new HitBox(AttackID.FTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // ftilt 5
-            new HitBox(AttackID.UTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 1
-            new HitBox(AttackID.UTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 2
-            new HitBox(AttackID.UTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 3
-            new HitBox(AttackID.UTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 4
-            new HitBox(AttackID.UTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // utilt 5
-            new HitBox(AttackID.DTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 1
-            new HitBox(AttackID.DTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 2
-            new HitBox(AttackID.DTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 3
-            new HitBox(AttackID.DTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 4
-            new HitBox(AttackID.DTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     2f,     0.075f, new Vector3(1f, 0f, 0f)), // dtilt 5
-            new HitBox(AttackID.Fair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)), // fAir
-            new HitBox(AttackID.Uair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)), // uair
-            new HitBox(AttackID.Dair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)), // dair
-            new HitBox(AttackID.Nair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     2f,     0.25f,  new Vector3(1f, 0f, 0f)) // nair
+            new HitBox(AttackID.Jab01,      new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     0.2f,     0.075f, new Vector3(0.05f, 0.05f, 0f)), // jab 1
+            new HitBox(AttackID.Jab02,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.15f, 0.15f, 0f)), // jab 2
+            new HitBox(AttackID.Jab03,      new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // jab 3
+            new HitBox(AttackID.Jab04,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // jab 4
+            new HitBox(AttackID.Jab05,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // jab 5
+            new HitBox(AttackID.Jab0R,      new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // jab r
+            new HitBox(AttackID.FTilt01,    new Vector3(0.75f, 0f, 0f),   0.25f,  2f,     0.2f,     0.075f, new Vector3(0.5f, 0.25f, 0f)), // ftilt 1
+            new HitBox(AttackID.FTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.5f, 0.25f, 0f)), // ftilt 2
+            new HitBox(AttackID.FTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     0.2f,     0.075f, new Vector3(0.5f, 0.25f, 0f)), // ftilt 3
+            new HitBox(AttackID.FTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.5f, 0.25f, 0f)), // ftilt 4
+            new HitBox(AttackID.FTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.5f, 0.25f, 0f)), // ftilt 5
+            new HitBox(AttackID.UTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     0.2f,     0.075f, new Vector3(0.05f, 0.75f, 0f)), // utilt 1
+            new HitBox(AttackID.UTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.05f, 0.75f, 0f)), // utilt 2
+            new HitBox(AttackID.UTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     0.2f,     0.075f, new Vector3(0.05f, 0.75f, 0f)), // utilt 3
+            new HitBox(AttackID.UTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.05f, 0.75f, 0f)), // utilt 4
+            new HitBox(AttackID.UTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.05f, 0.75f, 0f)), // utilt 5
+            new HitBox(AttackID.DTilt01,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     0.2f,     0.075f, new Vector3(0.05f, 0.05f, 0f)), // dtilt 1
+            new HitBox(AttackID.DTilt02,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // dtilt 2
+            new HitBox(AttackID.DTilt03,    new Vector3(0.5f, 0f, 0f),    0.25f,  2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // dtilt 3
+            new HitBox(AttackID.DTilt04,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // dtilt 4
+            new HitBox(AttackID.DTilt05,    new Vector3(0.65f, 0f, 0f),   0.5f,   2f,     0.2f,     0.075f, new Vector3(0.25f, 0.25f, 0f)), // dtilt 5
+            new HitBox(AttackID.Fair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     0.2f,     0.25f,  new Vector3(0.75f, 0.05f, 0f)), // fAir
+            new HitBox(AttackID.Uair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     0.2f,     0.25f,  new Vector3(0.55f,  1f, 0f)), // uair
+            new HitBox(AttackID.Dair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     0.2f,     0.25f,  new Vector3(0.25f, -1f, 0f)), // dair
+            new HitBox(AttackID.Nair01,     new Vector3(0.25f, 0f, 0f),   0.35f,  2f,     0.2f,     0.25f,  new Vector3(0.05f, 0.75f, 0f)) // nair
         };
 
         Attack[] attacks = new Attack[25]{
@@ -696,7 +717,39 @@ public class PlayerController : MonoBehaviour
 
     private void GetHitByAttackHitBox(HitBox hBox)
     {
-        _timeForHitStun = (hBox.damage + hBox.launchPower) / 10;
+        _timeForHitStun = CalculateHitStun(hBox);
+        damagePoints += hBox.damage;
         playerState.SetMovementState(MovementState.Hit);
+        StartCoroutine("ApplyHitForce", hBox);
+    }
+
+    IEnumerator ApplyHitForce(HitBox hBox)
+    {
+        int _shakeTimer = Mathf.RoundToInt(hBox.launchPower);
+        int startFrame = Time.frameCount;
+        int curFrame = 0;
+        Vector3 startPos = transform.localPosition;
+        while(_shakeTimer >= curFrame)
+        {
+            curFrame = Time.frameCount - startFrame;
+            float shakeValueX = UnityEngine.Random.Range(-0.05f, 0.05f);
+            float shakeValueY = UnityEngine.Random.Range(-0.05f, 0.05f);
+            transform.localPosition = new Vector3(startPos.x + shakeValueX, startPos.y + shakeValueY, 0f);
+            // transform.localPosition += new Vector3(launchingVel, launchingVel, 0f);
+            yield return null;
+        }
+        transform.localPosition = startPos;
+        CalculateLaunchDirection(hBox);
+    }
+
+    private float CalculateHitStun(HitBox hBox)
+    {
+        return (hBox.damage + hBox.launchPower) / 10;
+    }
+
+    private void CalculateLaunchDirection(HitBox hBox)
+    {
+        launchingDir = hBox.launchDirection;
+        launchingVel = (hBox.launchPower * damagePoints) / 10;
     }
 }
